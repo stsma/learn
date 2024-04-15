@@ -1,116 +1,186 @@
-﻿using test;
+﻿
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Routing;
+using System.Runtime.InteropServices;
+using System.Text.RegularExpressions;
 
-Coffee cup = cc.PourCoffee();
-Console.WriteLine("coffee is ready");
-
-var eggsTask = cc.FryEggsAsync(2);
-var baconTask = cc.FryBaconAsync(3);
-var toastTask = cc.MakeToastWithButterAndJamAsync(2);
-
-var breakfastTasks = new List<Task> { eggsTask, baconTask, toastTask };
-while (breakfastTasks.Count > 0)
+public class Program
 {
-    Task finishedTask = await Task.WhenAny(breakfastTasks);
-    if (finishedTask == eggsTask)
+    private static readonly IEnumerable<string> s_urlList = new string[]
     {
-        Console.WriteLine("eggs are ready");
-    }
-    else if (finishedTask == baconTask)
+        "https://learn.microsoft.com",
+        "https://learn.microsoft.com/aspnet/core",
+        "https://learn.microsoft.com/azure",
+        "https://learn.microsoft.com/azure/devops",
+        "https://learn.microsoft.com/dotnet",
+        "https://learn.microsoft.com/dotnet/desktop/wpf/get-started/create-app-visual-studio",
+        "https://learn.microsoft.com/education",
+        "https://learn.microsoft.com/shows/net-core-101/what-is-net",
+        "https://learn.microsoft.com/enterprise-mobility-security",
+        "https://learn.microsoft.com/gaming",
+        "https://learn.microsoft.com/graph",
+        "https://learn.microsoft.com/microsoft-365",
+        "https://learn.microsoft.com/office",
+        "https://learn.microsoft.com/powershell",
+        "https://learn.microsoft.com/sql",
+        "https://learn.microsoft.com/surface",
+        "https://dotnetfoundation.org",
+        "https://learn.microsoft.com/visualstudio",
+        "https://learn.microsoft.com/windows",
+        "https://learn.microsoft.com/xamarin"
+    };
+
+    private static readonly Button s_downloadButton = new();
+    private static readonly Button s_calculateButton = new();
+
+    private static readonly HttpClient s_httpClient = new();
+
+
+    private static void Calculate()
     {
-        Console.WriteLine("bacon is ready");
+        // <PerformGameCalculation>
+        static DamageResult CalculateDamageDone()
+        {
+            return new DamageResult()
+            {
+                // Code omitted:
+                //
+                // Does an expensive calculation and returns
+                // the result of that calculation.
+            };
+        }
+
+        s_calculateButton.Clicked += async (o, e) =>
+        {
+            // This line will yield control to the UI while CalculateDamageDone()
+            // performs its work. The UI thread is free to perform other work.
+            var damageResult = await Task.Run(() => CalculateDamageDone());
+            DisplayDamage(damageResult);
+        };
+        // </PerformGameCalculation>
     }
-    else if (finishedTask == toastTask)
+
+    private static void DisplayDamage(DamageResult damage)
     {
-        Console.WriteLine("toast is ready");
+        Console.WriteLine(damage.Damage);
     }
-    await finishedTask;
-    breakfastTasks.Remove(finishedTask);
+
+    private static void Download(string URL)
+    {
+        // <UnblockingDownload>
+        s_downloadButton.Clicked += async (o, e) =>
+        {
+            // This line will yield control to the UI as the request
+            // from the web service is happening.
+            //
+            // The UI thread is now free to perform other work.
+            var stringData = await s_httpClient.GetStringAsync(URL);
+            DoSomethingWithData(stringData);
+        };
+        // </UnblockingDownload>
+    }
+
+    private static void DoSomethingWithData(object stringData)
+    {
+        Console.WriteLine("Displaying data: ", stringData);
+    }
+
+    // <GetUsersForDataset>
+    private static async Task<User> GetUserAsync(int userId)
+    {
+        // Code omitted:
+        //
+        // Given a user Id {userId}, retrieves a User object corresponding
+        // to the entry in the database with {userId} as its Id.
+
+        return await Task.FromResult(new User() { id = userId });
+    }
+
+    private static async Task<IEnumerable<User>> GetUsersAsync(IEnumerable<int> userIds)
+    {
+        var getUserTasks = new List<Task<User>>();
+        foreach (int userId in userIds)
+        {
+            getUserTasks.Add(GetUserAsync(userId));
+        }
+
+        return await Task.WhenAll(getUserTasks);
+    }
+    // </GetUsersForDataset>
+
+    // <GetUsersForDatasetByLINQ>
+    private static async Task<User[]> GetUsersAsyncByLINQ(IEnumerable<int> userIds)
+    {
+        var getUserTasks = userIds.Select(id => GetUserAsync(id)).ToArray();
+        return await Task.WhenAll(getUserTasks);
+    }
+    // </GetUsersForDatasetByLINQ>
+
+    // <ExtractDataFromNetwork>
+    [HttpGet, Route("DotNetCount")]
+    static public async Task<int> GetDotNetCount(string URL)
+    {
+        // Suspends GetDotNetCount() to allow the caller (the web server)
+        // to accept another request, rather than blocking on this one.
+        var html = await s_httpClient.GetStringAsync(URL);
+        return Regex.Matches(html, @"\.NET").Count;
+    }
+    // </ExtractDataFromNetwork>
+
+    static async Task Main()
+    {
+        Console.WriteLine("Application started.");
+
+        Console.WriteLine("Counting '.NET' phrase in websites...");
+        int total = 0;
+        foreach (string url in s_urlList)
+        {
+            var result = await GetDotNetCount(url);
+            Console.WriteLine($"{url}: {result}");
+            total += result;
+        }
+        Console.WriteLine("Total: " + total);
+
+        Console.WriteLine("Retrieving User objects with list of IDs...");
+        IEnumerable<int> ids = new int[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 0 };
+        var users = await GetUsersAsync(ids);
+        foreach (User? user in users)
+        {
+            Console.WriteLine($"{user.id}: isEnabled={user.isEnabled}");
+        }
+
+        Console.WriteLine("Application ending.");
+    }
 }
 
-Juice oj = cc.PourOJ();
-Console.WriteLine("oj is ready");
-Console.WriteLine("Breakfast is ready!");
-
-// These classes are intentionally empty for the purpose of this example. They are simply marker classes for the purpose of demonstration, contain no properties, and serve no other purpose.
-internal class Bacon { }
-internal class Coffee { }
-internal class Egg { }
-internal class Juice { }
-internal class Toast { }
-
-
-namespace test
+class Button
 {
-    public static class cc
+    public Func<object, object, Task>? Clicked
     {
+        get;
+        internal set;
+    }
+}
 
+class DamageResult
+{
+    public int Damage
+    {
+        get { return 0; }
+    }
+}
 
-        internal static async Task<Toast> MakeToastWithButterAndJamAsync(int number)
-        {
-            var toast = await ToastBreadAsync(number);
-            ApplyButter(toast);
-            ApplyJam(toast);
+class User
+{
+    public bool isEnabled
+    {
+        get;
+        set;
+    }
 
-            return toast;
-        }
-
-        internal static Juice PourOJ()
-        {
-            Console.WriteLine("Pouring orange juice");
-            return new Juice();
-        }
-
-        internal static void ApplyJam(Toast toast) =>
-            Console.WriteLine("Putting jam on the toast");
-
-        internal static void ApplyButter(Toast toast) =>
-            Console.WriteLine("Putting butter on the toast");
-
-        internal static async Task<Toast> ToastBreadAsync(int slices)
-        {
-            for (int slice = 0; slice < slices; slice++)
-            {
-                Console.WriteLine("Putting a slice of bread in the toaster");
-            }
-            Console.WriteLine("Start toasting...");
-            await Task.Delay(3000);
-            Console.WriteLine("Remove toast from toaster");
-
-            return new Toast();
-        }
-
-        internal static async Task<Bacon> FryBaconAsync(int slices)
-        {
-            Console.WriteLine($"putting {slices} slices of bacon in the pan");
-            Console.WriteLine("cooking first side of bacon...");
-            await Task.Delay(3000);
-            for (int slice = 0; slice < slices; slice++)
-            {
-                Console.WriteLine("flipping a slice of bacon");
-            }
-            Console.WriteLine("cooking the second side of bacon...");
-            await Task.Delay(3000);
-            Console.WriteLine("Put bacon on plate");
-
-            return new Bacon();
-        }
-
-        internal static async Task<Egg> FryEggsAsync(int howMany)
-        {
-            Console.WriteLine("Warming the egg pan...");
-            await Task.Delay(3000);
-            Console.WriteLine($"cracking {howMany} eggs");
-            Console.WriteLine("cooking the eggs ...");
-            await Task.Delay(3000);
-            Console.WriteLine("Put eggs on plate");
-
-            return new Egg();
-        }
-
-        internal static Coffee PourCoffee()
-        {
-            Console.WriteLine("Pouring coffee");
-            return new Coffee();
-        }
+    public int id
+    {
+        get;
+        set;
     }
 }
