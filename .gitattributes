@@ -1,2 +1,2 @@
 ﻿* linguist-vendored
-*.cs linguist-vendored=false
+*.cs linguist-language=c#
